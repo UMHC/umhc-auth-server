@@ -1,0 +1,20 @@
+{
+  "name": "umhc-auth-server",
+  "version": "1.0.0",
+  "description": "Secure serverless authentication for UMHC Finance System",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel"
+  },
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "node-fetch": "^2.6.7"
+  },
+  "devDependencies": {
+    "vercel": "^32.0.0"
+  },
+  "keywords": ["oauth", "github", "serverless", "umhc"],
+  "author": "UMHC Committee",
+  "license": "MIT"
+}
