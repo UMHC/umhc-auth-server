@@ -1,16 +1,9 @@
 {
   "version": 2,
-  "name": "umhc-auth-server",
   "builds": [
     {
       "src": "api/*.js",
       "use": "@vercel/node"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "/api/$1"
     }
   ],
   "headers": [
@@ -19,7 +12,7 @@
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "https://UMHC.github.io"
+          "value": "https://[YOUR-GITHUB-USERNAME].github.io"
         },
         {
           "key": "Access-Control-Allow-Methods",
