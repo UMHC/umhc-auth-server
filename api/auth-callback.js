@@ -15,17 +15,17 @@ module.exports = async function handler(req, res) {
 
         if (oauthError) {
             console.log('OAuth error:', oauthError);
-            return redirectWithError(res, `GitHub OAuth error: ${oauthError}`);
+            return redirectWithError(res, 'oauth_error'); // IMPROVED: Use error codes
         }
 
         if (!code || !state) {
             console.log('Missing OAuth parameters');
-            return redirectWithError(res, 'Missing OAuth parameters');
+            return redirectWithError(res, 'invalid_request');
         }
 
         if (!validateState(state)) {
             console.log('Invalid OAuth state');
-            return redirectWithError(res, 'Invalid OAuth state');
+            return redirectWithError(res, 'invalid_state');
         }
 
         console.log('Exchanging code for token...');
@@ -41,7 +41,7 @@ module.exports = async function handler(req, res) {
         
         if (!isAuthorized) {
             console.log('Access denied - no committee email');
-            return redirectWithError(res, 'Access denied: Only UMHC committee members can access admin features');
+            return redirectWithError(res, 'access_denied');
         }
 
         console.log('Generating JWT token...');
@@ -51,7 +51,7 @@ module.exports = async function handler(req, res) {
 
     } catch (error) {
         console.error('OAuth callback error:', error);
-        return redirectWithError(res, `Authentication failed: ${error.message}`);
+        return redirectWithError(res, 'server_error');
     }
 }
 
@@ -170,7 +170,8 @@ function generateJWT(userData) {
 }
 
 function redirectWithSuccess(res, jwtToken, userData) {
-    const clientUrl = process.env.CLIENT_URL || 'https://UMHC.github.io/umhc-finance';
+    // IMPROVED: More specific CLIENT_URL
+    const clientUrl = process.env.CLIENT_URL || 'https://umhc.github.io/umhc-finance';
     const params = new URLSearchParams({
         token: jwtToken,
         user: userData.login,
@@ -183,15 +184,16 @@ function redirectWithSuccess(res, jwtToken, userData) {
     res.end();
 }
 
-function redirectWithError(res, errorMessage) {
-    const clientUrl = process.env.CLIENT_URL || 'https://UMHC.github.io/umhc-finance';
+function redirectWithError(res, errorCode) {
+    // IMPROVED: Use error codes instead of full messages in URL
+    const clientUrl = process.env.CLIENT_URL || 'https://umhc.github.io/umhc-finance';
     const params = new URLSearchParams({
-        error: errorMessage,
+        error: errorCode,
         status: 'error'
     });
 
     const redirectUrl = `${clientUrl}/admin-login.html?${params.toString()}`;
-    console.log('Redirecting to error:', redirectUrl);
+    console.log('Redirecting to error:', redirectUrl, 'Error code:', errorCode);
     res.writeHead(302, { 'Location': redirectUrl });
     res.end();
 }
