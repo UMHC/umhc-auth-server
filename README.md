@@ -1,4 +1,4 @@
-# UMHC Authentication Server
+# UMHC Auth Server
 
 Secure serverless authentication for UMHC Finance System.
 
@@ -6,8 +6,8 @@ Secure serverless authentication for UMHC Finance System.
 - GITHUB_CLIENT_ID
 - GITHUB_CLIENT_SECRET  
 - JWT_SECRET
-- ALLOWED_EMAIL
-- CLIENT_URL
+- ALLOWED_EMAIL=hiking@manchesterstudentsunion.com
+- CLIENT_URL=https://UMHC.github.io/umhc-finance
 
 ## Deploy:
 ```bash
