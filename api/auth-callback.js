@@ -1,32 +1,52 @@
+const jwt = require('jsonwebtoken');
+
 module.exports = async function handler(req, res) {
+    console.log('Auth callback called with method:', req.method);
+    console.log('Query params:', req.query);
+    
     if (req.method !== 'GET') {
+        console.log('Wrong method, rejecting');
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
         const { code, state, error: oauthError } = req.query;
+        console.log('Received code:', !!code, 'state:', !!state, 'error:', oauthError);
 
         if (oauthError) {
+            console.log('OAuth error:', oauthError);
             return redirectWithError(res, `GitHub OAuth error: ${oauthError}`);
         }
 
         if (!code || !state) {
+            console.log('Missing OAuth parameters');
             return redirectWithError(res, 'Missing OAuth parameters');
         }
 
         if (!validateState(state)) {
+            console.log('Invalid OAuth state');
             return redirectWithError(res, 'Invalid OAuth state');
         }
 
+        console.log('Exchanging code for token...');
         const tokenData = await exchangeCodeForToken(code);
+        console.log('Got token, fetching user data...');
+        
         const userData = await fetchUserData(tokenData.access_token);
+        console.log('User data:', userData.login);
+        
+        console.log('Validating committee email...');
         const isAuthorized = await validateCommitteeEmail(userData, tokenData.access_token);
+        console.log('Is authorized:', isAuthorized);
         
         if (!isAuthorized) {
+            console.log('Access denied - no committee email');
             return redirectWithError(res, 'Access denied: Only UMHC committee members can access admin features');
         }
 
+        console.log('Generating JWT token...');
         const jwtToken = generateJWT(userData);
+        console.log('Redirecting to success...');
         redirectWithSuccess(res, jwtToken, userData);
 
     } catch (error) {
@@ -41,6 +61,7 @@ function validateState(encodedState) {
         const tenMinutesAgo = Date.now() - (10 * 60 * 1000);
         return decoded.timestamp > tenMinutesAgo;
     } catch (error) {
+        console.log('State validation error:', error.message);
         return false;
     }
 }
@@ -101,6 +122,8 @@ async function validateCommitteeEmail(userData, accessToken) {
         throw new Error('Committee email not configured');
     }
 
+    console.log('Checking for email:', allowedEmail);
+
     const emailResponse = await fetch('https://api.github.com/user/emails', {
         headers: {
             'Authorization': `token ${accessToken}`,
@@ -114,6 +137,8 @@ async function validateCommitteeEmail(userData, accessToken) {
     }
 
     const emails = await emailResponse.json();
+    console.log('User emails:', emails.map(e => `${e.email} (verified: ${e.verified})`));
+    
     const hasCommitteeEmail = emails.some(email => 
         email.email.toLowerCase() === allowedEmail.toLowerCase() && email.verified
     );
@@ -122,7 +147,6 @@ async function validateCommitteeEmail(userData, accessToken) {
 }
 
 function generateJWT(userData) {
-    const jwt = require('jsonwebtoken');
     const jwtSecret = process.env.JWT_SECRET;
     
     if (!jwtSecret) {
@@ -146,7 +170,7 @@ function generateJWT(userData) {
 }
 
 function redirectWithSuccess(res, jwtToken, userData) {
-    const clientUrl = process.env.CLIENT_URL;
+    const clientUrl = process.env.CLIENT_URL || 'https://UMHC.github.io/umhc-finance';
     const params = new URLSearchParams({
         token: jwtToken,
         user: userData.login,
@@ -154,18 +178,20 @@ function redirectWithSuccess(res, jwtToken, userData) {
     });
 
     const redirectUrl = `${clientUrl}/admin-dashboard.html?${params.toString()}`;
+    console.log('Redirecting to success:', redirectUrl);
     res.writeHead(302, { 'Location': redirectUrl });
     res.end();
 }
 
 function redirectWithError(res, errorMessage) {
-    const clientUrl = process.env.CLIENT_URL;
+    const clientUrl = process.env.CLIENT_URL || 'https://UMHC.github.io/umhc-finance';
     const params = new URLSearchParams({
         error: errorMessage,
         status: 'error'
     });
 
     const redirectUrl = `${clientUrl}/admin-login.html?${params.toString()}`;
+    console.log('Redirecting to error:', redirectUrl);
     res.writeHead(302, { 'Location': redirectUrl });
     res.end();
 }
