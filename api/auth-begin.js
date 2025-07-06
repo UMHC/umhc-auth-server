@@ -40,10 +40,7 @@ module.exports = async function handler(req, res) {
 
         const authUrl = `https://github.com/login/oauth/authorize?${params.toString()}`;
 
-        res.status(200).json({
-            authUrl: authUrl,
-            state: stateWithTimestamp
-        });
+        res.redirect(302, authUrl);
 
     } catch (error) {
         res.status(500).json({ 
