@@ -2,7 +2,6 @@
   "name": "umhc-auth-server",
   "version": "1.0.0",
   "description": "Secure serverless authentication for UMHC Finance System",
-  "type": "module",
   "dependencies": {
     "jsonwebtoken": "^9.0.2"
   },
