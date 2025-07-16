@@ -1,11 +1,12 @@
-// api/claude-extract.js - Add this to your umhc-auth-server repository
+// api/claude-extract.js - Fixed with CommonJS syntax
+const jwt = require('jsonwebtoken');
 
 const CLAUDE_API_URL = 'https://api.anthropic.com/v1/messages';
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', process.env.CLIENT_URL || 'https://UMHC.github.io');
+    res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization');
 
@@ -23,28 +24,29 @@ export default async function handler(req, res) {
     try {
         console.log('Claude API proxy request received');
 
-        // Verify JWT token (reuse existing auth verification logic)
+        // Verify JWT token
         const authHeader = req.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({ error: 'No valid auth token provided' });
         }
 
         const token = authHeader.split(' ')[1];
-        
+
         // Verify JWT token using your existing logic
-        const jwt = require('jsonwebtoken');
         let decoded;
         try {
-            decoded = jwt.verify(token, process.env.JWT_SECRET);
-            console.log('Token verified for user:', decoded.login);
+            decoded = jwt.verify(token, process.env.JWT_SECRET, {
+                issuer: 'umhc-auth-server',
+                audience: 'umhc-finance-system'
+            });
+            console.log('Token verified for user:', decoded.username);
         } catch (error) {
             console.log('Token verification failed:', error.message);
             return res.status(401).json({ error: 'Invalid auth token' });
         }
 
-        // Check if user has the committee email (reuse existing logic)
-        if (!decoded.emails || !decoded.emails.some(email => 
-            email.email === process.env.ALLOWED_EMAIL && email.verified)) {
+        // Check if user has the committee email
+        if (decoded.email !== process.env.ALLOWED_EMAIL) {
             console.log('User does not have committee email access');
             return res.status(403).json({ error: 'Committee access required' });
         }
@@ -60,9 +62,9 @@ export default async function handler(req, res) {
         const claudeApiKey = apiKey || process.env.CLAUDE_API_KEY;
 
         if (!claudeApiKey) {
-            return res.status(400).json({ 
-                error: 'Claude API key required. Please provide apiKey in request body or configure CLAUDE_API_KEY environment variable.',
-                needsApiKey: true 
+            return res.status(400).json({
+                error: 'Claude API key required. Please provide apiKey in request body.',
+                needsApiKey: true
             });
         }
 
@@ -91,7 +93,7 @@ export default async function handler(req, res) {
         if (!claudeResponse.ok) {
             const errorText = await claudeResponse.text();
             console.error('Claude API error:', claudeResponse.status, errorText);
-            return res.status(claudeResponse.status).json({ 
+            return res.status(claudeResponse.status).json({
                 error: `Claude API error: ${errorText}`
             });
         }
@@ -110,7 +112,7 @@ export default async function handler(req, res) {
 
     } catch (error) {
         console.error('Claude proxy error:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             error: 'Internal server error',
             message: error.message
         });
