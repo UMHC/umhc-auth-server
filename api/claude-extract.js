@@ -51,11 +51,45 @@ module.exports = async function handler(req, res) {
             return res.status(403).json({ error: 'Committee access required' });
         }
 
-        // Get the request data - UPDATE DEFAULT MODEL HERE
-        const { prompt, model = 'claude-3-5-sonnet-20241022', maxTokens = 4000, apiKey } = req.body;
+        // Get the request data
+        const { 
+            prompt, 
+            messageContent, // NEW: Support for full message content array
+            model = 'claude-3-5-sonnet-20241022', 
+            maxTokens = 8000, 
+            apiKey,
+            temperature = 0.1
+        } = req.body;
 
-        if (!prompt) {
-            return res.status(400).json({ error: 'Prompt is required' });
+        // Handle both old format (prompt) and new format (messageContent)
+        let messages;
+        if (messageContent && Array.isArray(messageContent)) {
+            // New format with images/documents
+            messages = [{
+                role: 'user',
+                content: messageContent
+            }];
+            console.log('Using message content with', messageContent.length, 'parts');
+            
+            // Log content types for debugging
+            messageContent.forEach((part, index) => {
+                if (part.type === 'document') {
+                    console.log(`Part ${index}: PDF document`);
+                } else if (part.type === 'image') {
+                    console.log(`Part ${index}: Image (${part.source.media_type})`);
+                } else if (part.type === 'text') {
+                    console.log(`Part ${index}: Text prompt (${part.text.length} chars)`);
+                }
+            });
+        } else if (prompt) {
+            // Old format with just text
+            messages = [{
+                role: 'user',
+                content: prompt
+            }];
+            console.log('Using text-only prompt');
+        } else {
+            return res.status(400).json({ error: 'Either prompt or messageContent is required' });
         }
 
         // API key can come from request body or environment variable
@@ -81,12 +115,8 @@ module.exports = async function handler(req, res) {
             body: JSON.stringify({
                 model: model,
                 max_tokens: maxTokens,
-                messages: [
-                    {
-                        role: 'user',
-                        content: prompt
-                    }
-                ]
+                temperature: temperature,
+                messages: messages
             })
         });
 
@@ -97,9 +127,16 @@ module.exports = async function handler(req, res) {
             // Parse error to provide better feedback
             try {
                 const errorData = JSON.parse(errorText);
-                if (errorData.error && errorData.error.message && errorData.error.message.includes('model')) {
+                if (errorData.error && errorData.error.message) {
+                    if (errorData.error.message.includes('model')) {
+                        return res.status(400).json({
+                            error: `Invalid model: ${model}. Use claude-3-5-sonnet-20241022, claude-3-opus-20240229, or claude-3-haiku-20240307`
+                        });
+                    }
+                    // Return the actual error message from Claude
                     return res.status(400).json({
-                        error: `Invalid model: ${model}. Use claude-3-5-sonnet-20241022, claude-3-opus-20240229, or claude-3-haiku-20240307`
+                        error: errorData.error.message,
+                        type: errorData.error.type || 'unknown_error'
                     });
                 }
             } catch (e) {
@@ -113,6 +150,15 @@ module.exports = async function handler(req, res) {
 
         const claudeResult = await claudeResponse.json();
         console.log('Claude API request successful');
+        
+        // Log token usage for monitoring
+        if (claudeResult.usage) {
+            console.log('Token usage:', {
+                input: claudeResult.usage.input_tokens,
+                output: claudeResult.usage.output_tokens,
+                total: claudeResult.usage.input_tokens + claudeResult.usage.output_tokens
+            });
+        }
 
         // Return the Claude response
         res.status(200).json({
