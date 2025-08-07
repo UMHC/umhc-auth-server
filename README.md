@@ -9,6 +9,12 @@ Secure serverless authentication for UMHC Finance System.
 - ALLOWED_EMAIL=hiking@manchesterstudentsunion.com
 - CLIENT_URL=https://UMHC.github.io/umhc-finance
 
+## API Endpoints:
+- `/api/auth-begin` - Initiates GitHub OAuth flow
+- `/api/auth-callback` - Handles GitHub OAuth callback
+- `/api/auth-verify` - Verifies JWT tokens
+- `/api/health` - Health check endpoint
+
 ## Deploy:
 ```bash
 vercel
